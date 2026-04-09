@@ -1,5 +1,3 @@
-// atl3 beat size (1b ,2b,4b(normal)) ezay lesa mt3mltsh
-//  prot lesa mtl3thosh
 module AXI_AR_channel(
 
   input                     clk,
@@ -204,7 +202,7 @@ module AXI_AR_channel(
 
     endcase
   end
-  
+
   //________________________________________OUTPUTS LOGIC________________________________________//
 
   //-------------------------------------------

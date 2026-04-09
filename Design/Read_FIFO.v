@@ -8,7 +8,7 @@ module Read_FIFO(
   input                 rst_n,
 
   // AR-CHANNEL
-  input                         ar_fifo_wr_en, // write enable for fifo (ARVALID && ARREADY HIGH)
+  input                         ar_fifo_wr_en, // write enable for fifo (ARVALID HIGH)
   input       [3:0]             ar_id,
   input       [31:0]            ar_addr,
   input       [7:0]             ar_len,

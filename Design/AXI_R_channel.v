@@ -1,10 +1,9 @@
-//*******RESPONE IN ORDER********
 module AXI_R_channel (
 
   input                         clk,
   input                         rst_n,
 
-  input       [8:0]              beats_no,
+  input       [8:0]             beats_no,
   input                         ar_transfer_done,
 
   input                         slave_data_valid,
@@ -13,14 +12,14 @@ module AXI_R_channel (
   input       [3:0]              r_fifo_id,
   input                          r_ready,
 
-  input       [`ADDR_WIDTH-1:0] fifo_rd_ptr, // Read pointer of fifo
-  output  reg [`ADDR_WIDTH-1:0] r_rd_ptr, // Read pointer when RLAST is high
+  input       [`ADDR_WIDTH-1:0]  fifo_rd_ptr, // Read pointer of fifo
+  output  reg [`ADDR_WIDTH-1:0]  r_rd_ptr, // Read pointer when RLAST is high
 
-  output  reg                   r_resp,
-  output  reg                   r_valid,
-  output  reg [3:0]             r_id,
-  output  reg [31:0]            r_data,
-  output  reg                   r_last
+  output  reg                    r_resp,
+  output  reg                    r_valid,
+  output  reg [3:0]              r_id,
+  output  reg [31:0]             r_data,
+  output  reg                    r_last
   );
 
 
