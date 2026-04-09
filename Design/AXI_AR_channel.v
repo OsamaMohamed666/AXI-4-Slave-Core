@@ -1,77 +1,251 @@
+// atl3 beat size (1b ,2b,4b(normal)) ezay lesa mt3mltsh
+//  prot lesa mtl3thosh
 module AXI_AR_channel(
 
   input                     clk,
   input                     rst_n,
 
-
+  input                     slave_addr_ready,
   input                     ar_valid,
-  input       [31:0]        ar_addr,
+  input       [31:0]        fifo_ar_addr,
+  input       [7:0]         fifo_ar_len, // length of brust of rdata, how many transfers
+  input       [2:0]         fifo_ar_size, // size of brust of rdata, how many bytes per a single transfer
+  input       [2:0]         fifo_ar_prot,
+  input       [1:0]         fifo_ar_burst, // its type
+  input                     full_flag,
+  input                     strt_rd_transaction,
 
+
+
+  output      [8:0]         beats_no,
   output  reg               ar_ready,
+
+  // OUTPUTS FOR SLAVE
+  output  reg [2:0]         slave_ar_prot,
   output  reg [31:0]        slave_ar_addr,
+  output  reg               slave_addr_valid,
 
   //CONTROL FLAGS
-  input                     r_transfer_done,
-  output  reg               ar_transfer_done
+  output                   ar_transfer_done
 );
 
-  //------------------------------------------
-  // ADDRESS SAMPLING
-  //------------------------------------------
-  always @ (posedge clk or negedge rst_n) begin
-    if(!rst_n) begin
-      slave_ar_addr <= 32'b0;
-    end
-
-    // Sample the address when both ar_valid and ar_ready are high, and ar_transfer_done is not already asserted.
-    // This ensures that the address is only sampled once per read transaction.
-    else if(ar_valid && ar_ready && !ar_transfer_done) begin
-      slave_ar_addr <= ar_addr;
-    end
-
+  // CALCULATING BEATS NUMBER AND SIZE
+  reg  [7:0] beats_size;
+  assign beats_no = fifo_ar_len + 9'd1;
+  always @ (*) begin
+    case (fifo_ar_size)
+    3'b000 :  beats_size = 8'd1;
+    3'b001 :  beats_size = 8'd2;
+    3'b010 :  beats_size = 8'd4;
+    3'b011 :  beats_size = 8'd8;
+    3'b100 :  beats_size = 8'd16;
+    3'b101 :  beats_size = 8'd32;
+    3'b110 :  beats_size = 8'd64;
+    3'b111 :  beats_size = 8'd128;
+    default : beats_size = 8'd0;
+    endcase
   end
 
-  //------------------------------------------
-  // READY LOGIC
-  //------------------------------------------
+
+  //ARREADY FLAG
+  always @ (full_flag) begin
+    ar_ready = ~full_flag;
+  end
+
+  //________________________________________BRUST TYPES LOGIC________________________________________//
+
+
+  //flags to indicate the types incr and wrap
+  wire is_incr, is_wrap;
+  assign is_incr = (fifo_ar_burst == 2'b01) ? 1'b1 : 1'b0;
+  assign is_wrap = (fifo_ar_burst == 2'b10) ? 1'b1 : 1'b0;
+
+  //-------------------------------------------
+  // First Fixed
+  //-------------------------------------------
+  wire [31:0] addr_fixed;
+  assign addr_fixed = fifo_ar_addr;
+
+  //-------------------------------------------
+  // Second INCR
+  //-------------------------------------------
+
+  reg [7:0] address_count;
+  reg [31:0] current_addr;
+  reg address_count_busy;
+
+
+  //-------------------------------------------
+  // Third WRAP
+  //-------------------------------------------
+
+  // Axlen belong to {1,3,7,15} >>>>> no_beats == {2,4,8,16}
+  // Starting address must be alligned to lower addr
+
+  // flag to indicate starting address
+  reg is_starting_addr;
+
+  // Calculating boundry and Checking Address alignment for starting address
+  //-------------------------------------------
+  wire [31:0] aligned_sa; // aligned starting addr
+  wire [31:0] sa; //starting addr
+  wire [31:0] wrap_boundry_size;
+  wire [31:0] wrap_boundry_addr;
+
+  assign sa =(is_starting_addr && is_wrap)? current_addr : 32'b0;
+
+  assign wrap_boundry_size = (beats_no << fifo_ar_size); // boundry size
+  assign aligned_sa = sa & ~(wrap_boundry_size - 31'd1); // alligned address
+  assign wrap_boundry_addr = aligned_sa + wrap_boundry_size; // boundry address
+
+
+  //--------------------------------------------
+  // Address Counter
+  //--------------------------------------------
+
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      ar_ready <= 1'b1;
+        address_count <= 8'h00;
     end
-
-    // 1) Once ar_transfer_done is asserted, the slave should not accept new addresses until the current read transaction is completed
-    //    Which is indicated by r_transfer_done.
-    // 2) Now also, you can do new read transaction back to back just after previous transaction is done
-    //    without waiting for one extra cycle because ar_ready is deasserted only when ar_transfer_done is asserted
-    //    and it will be reasserted as soon as r_transfer_done is asserted indicating that the previous transaction is done and slave can accept new address.
-    else if (ar_transfer_done && !r_transfer_done) begin
-      ar_ready <= 1'b0;
+    // ar_valid and ar_ready not the only condition still needed another condition for the fifo to be read
+    else if (ar_valid && ar_ready && !address_count_busy) begin
+        address_count <= 8'h00;  // Reset on new transaction start
     end
-
+    else if (address_count < fifo_ar_len) begin
+        address_count <= address_count + 1'b1;  // Increment during burst
+    end
     else begin
-      ar_ready <= 1'b1;
+        address_count <= 8'h00;  // Reset after burst completion (or LEN=0 case)
     end
-
   end
 
-  //------------------------------------------
-  // AR CHANNEL TRANSFER DONE FLAG LOGIC
-  //------------------------------------------
+  //---------------------------------------------------
+  // Address generation for INCR && WRAP burst types
+  //---------------------------------------------------
 
-    always @(posedge clk or negedge rst_n) begin
+
+  // always @ (*) begin
+  //   if (address_count_busy && is_incr)
+  //     current_addr = start_addr_inc + (beats_size * address_count);
+  //   else
+  //     current_addr = start_addr_inc;
+  // end
+
+  // Change the above always block to be sequential to avoid the combinational loop
+  // and to avoid using multplication
+  always @ (posedge clk or negedge rst_n) begin
     if (!rst_n) begin
-      ar_transfer_done <= 1'b0;
+      current_addr <= 32'b0;
+      is_starting_addr <=0;
     end
-
-    else if (ar_valid && ar_ready) begin
-      ar_transfer_done <= 1'b1;
+    else if (!address_count_busy && (is_incr || is_wrap) && strt_rd_transaction) begin // still a condition, need a condition for the fifo to be read(i think that's good)
+      current_addr <= fifo_ar_addr; //start address
+      is_starting_addr <= 1'b1;
     end
-
-    else if(r_transfer_done) begin
-      ar_transfer_done <= 1'b0;
+    else if (address_count_busy && is_wrap && !(current_addr + beats_size < wrap_boundry_addr)) begin
+      current_addr <= (current_addr + beats_size) -  wrap_boundry_addr ;
+      is_starting_addr <= 1'b0;
     end
-
+    else if (address_count_busy && (is_incr || is_wrap)) begin
+      current_addr <= current_addr + beats_size;
+      is_starting_addr <= 1'b0;
+    end
+    else
+      is_starting_addr <= 0;
   end
+
+  //-------------------------------------------
+  // Burst TYPE FSM
+  //-------------------------------------------
+
+  localparam reg  IDLE = 1'b0,
+                  BURSTING = 1'b1;
+
+  reg [31:0] slave_ar_addr_tmp;
+  reg slave_addr_valid_tmp;
+
+  reg  cs,ns;
+  always @ (posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      cs <= 1'b0;
+    end
+    else
+      cs <= ns;
+  end
+
+  always @ (*) begin
+    slave_addr_valid_tmp = 1'b0;
+    slave_ar_addr_tmp = 32'b0;
+    address_count_busy = 1'b0;
+    case (cs)
+
+    IDLE: begin
+      if(strt_rd_transaction) begin // fifo start sending transaction data
+        ns = BURSTING;
+      end
+      else begin
+        ns = IDLE;
+      end
+    end
+
+
+    BURSTING: begin
+      address_count_busy = 1'b1;
+      slave_addr_valid_tmp = (slave_addr_ready == 1'b1)? 1'b1 : 1'b0;
+      slave_ar_addr_tmp = (fifo_ar_burst == 2'b00) ||(fifo_ar_burst == 2'b11) ? addr_fixed: current_addr;
+
+      if (address_count == fifo_ar_len)
+        ns = IDLE;
+      else
+        ns = BURSTING;
+    end
+
+    default: ns = IDLE;
+
+    endcase
+  end
+  
+  //________________________________________OUTPUTS LOGIC________________________________________//
+
+  //-------------------------------------------
+  //OUTPUTS TO SLAVE
+  //-------------------------------------------
+  always @ (posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      slave_addr_valid <= 1'b0;
+    end
+    else begin
+      slave_addr_valid <= slave_addr_valid_tmp;
+    end
+  end
+
+  always @ (posedge clk or negedge rst_n)begin
+    if(!rst_n) begin
+      slave_ar_addr <= 32'b0;
+      slave_ar_prot <= 3'b0;
+    end
+    else if (slave_addr_valid_tmp) begin
+      slave_ar_addr <= slave_ar_addr_tmp;
+      slave_ar_prot <= fifo_ar_prot;
+    end
+  end
+
+  //-------------------------------------------
+  //OUTPUTS TO R CHANNEL
+  //-------------------------------------------
+
+  // Flag to indicate that address transaction is done
+  // By detecting neg edge of address count busy
+  reg address_count_busy_reg;
+  always @ (posedge clk or negedge rst_n) begin
+    if(!rst_n)
+      address_count_busy_reg <=0;
+    else
+      address_count_busy_reg <= address_count_busy;
+  end
+  assign ar_transfer_done = address_count_busy_reg & ~address_count_busy;
+
 
 endmodule
+
 
