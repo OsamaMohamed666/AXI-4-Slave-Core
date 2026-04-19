@@ -3,7 +3,7 @@ module AXI_AR_channel(
   input                     clk,
   input                     rst_n,
 
-  input                     slave_addr_ready,
+  input                     slave_addr_ready, // slave ready to recieve new addr
   input                     ar_valid,
   input       [31:0]        fifo_ar_addr,
   input       [7:0]         fifo_ar_len, // length of brust of rdata, how many transfers
@@ -17,6 +17,9 @@ module AXI_AR_channel(
 
   output      [8:0]         beats_no,
   output  reg               ar_ready,
+
+  output  reg               address_count_busy,
+
 
   // OUTPUTS FOR SLAVE
   output  reg [2:0]         slave_ar_prot,
@@ -53,10 +56,11 @@ module AXI_AR_channel(
   //________________________________________BRUST TYPES LOGIC________________________________________//
 
 
-  //flags to indicate the types incr and wrap
+  // Flags to indicate the types incr and wrap
   wire is_incr, is_wrap;
-  assign is_incr = (fifo_ar_burst == 2'b01) ? 1'b1 : 1'b0;
-  assign is_wrap = (fifo_ar_burst == 2'b10) ? 1'b1 : 1'b0;
+
+  // Address temp for wrap and INCR
+  reg [31:0] current_addr;
 
   //-------------------------------------------
   // First Fixed
@@ -67,15 +71,14 @@ module AXI_AR_channel(
   //-------------------------------------------
   // Second INCR
   //-------------------------------------------
+  assign is_incr = (fifo_ar_burst == 2'b01) ? 1'b1 : 1'b0;
 
-  reg [7:0] address_count;
-  reg [31:0] current_addr;
-  reg address_count_busy;
 
 
   //-------------------------------------------
   // Third WRAP
   //-------------------------------------------
+  assign is_wrap = (fifo_ar_burst == 2'b10) ? 1'b1 : 1'b0;
 
   // Axlen belong to {1,3,7,15} >>>>> no_beats == {2,4,8,16}
   // Starting address must be alligned to lower addr
@@ -100,19 +103,19 @@ module AXI_AR_channel(
   //--------------------------------------------
   // Address Counter
   //--------------------------------------------
+  reg [`ADDR_WIDTH - 1:0] address_count;
+  // reg address_count_busy;
 
   always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         address_count <= 8'h00;
     end
-    // ar_valid and ar_ready not the only condition still needed another condition for the fifo to be read
-    else if (ar_valid && ar_ready && !address_count_busy) begin
-        address_count <= 8'h00;  // Reset on new transaction start
-    end
-    else if (address_count < fifo_ar_len) begin
+
+    else if (address_count < fifo_ar_len && slave_addr_ready && address_count_busy) begin
         address_count <= address_count + 1'b1;  // Increment during burst
     end
-    else begin
+
+    else if ((~|fifo_ar_len) || !address_count_busy) begin
         address_count <= 8'h00;  // Reset after burst completion (or LEN=0 case)
     end
   end
@@ -136,15 +139,15 @@ module AXI_AR_channel(
       current_addr <= 32'b0;
       is_starting_addr <=0;
     end
-    else if (!address_count_busy && (is_incr || is_wrap) && strt_rd_transaction) begin // still a condition, need a condition for the fifo to be read(i think that's good)
+    else if (!address_count_busy && (is_incr || is_wrap) && strt_rd_transaction) begin
       current_addr <= fifo_ar_addr; //start address
       is_starting_addr <= 1'b1;
     end
-    else if (address_count_busy && is_wrap && !(current_addr + beats_size < wrap_boundry_addr)) begin
+    else if (address_count_busy && is_wrap && !(current_addr + beats_size < wrap_boundry_addr) && slave_addr_ready) begin
       current_addr <= (current_addr + beats_size) -  wrap_boundry_addr ;
       is_starting_addr <= 1'b0;
     end
-    else if (address_count_busy && (is_incr || is_wrap)) begin
+    else if (address_count_busy && (is_incr || is_wrap) && slave_addr_ready) begin
       current_addr <= current_addr + beats_size;
       is_starting_addr <= 1'b0;
     end
@@ -189,7 +192,7 @@ module AXI_AR_channel(
 
     BURSTING: begin
       address_count_busy = 1'b1;
-      slave_addr_valid_tmp = (slave_addr_ready == 1'b1)? 1'b1 : 1'b0;
+      slave_addr_valid_tmp = 1'b1;
       slave_ar_addr_tmp = (fifo_ar_burst == 2'b00) ||(fifo_ar_burst == 2'b11) ? addr_fixed: current_addr;
 
       if (address_count == fifo_ar_len)
@@ -222,7 +225,7 @@ module AXI_AR_channel(
       slave_ar_addr <= 32'b0;
       slave_ar_prot <= 3'b0;
     end
-    else if (slave_addr_valid_tmp) begin
+    else if (slave_addr_valid_tmp && slave_addr_ready) begin // HANDSHAKE DONE
       slave_ar_addr <= slave_ar_addr_tmp;
       slave_ar_prot <= fifo_ar_prot;
     end

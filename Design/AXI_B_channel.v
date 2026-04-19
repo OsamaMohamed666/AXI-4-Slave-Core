@@ -1,34 +1,58 @@
+  // `define ADDR_WIDTH 8
+
 module AXI_B_channel (
 
-  input           clk,
-  input           rst_n,
+  input                           clk,
+  input                           rst_n,
 
-  input           b_ready,
-  input           enable,
+  input                           b_ready,
+  input       [2:0]               fifo_aw_size,
+  input                           slave_w_last,
+  input                           write_transfer_done,
+  input       [5:0]               b_fifo_id,
+  input       [`ADDR_WIDTH -1 :0] aw_rd_ptr,
+  input       [`ADDR_WIDTH -1 :0] w_rd_ptr,
 
-  output  reg     b_resp,
-  output  reg     b_valid
+  output  reg [`ADDR_WIDTH -1:0]  b_aw_rd_ptr,
+  output  reg [`ADDR_WIDTH -1:0]  b_w_rd_ptr,
+  output  reg [5:0]               b_id,
+  output  reg [1:0]               b_resp,
+  output  reg                     b_valid
 );
 
-localparam  SLVERR = 1'b1,
-            OKAY = 1'b0;
+  //BRESP VALUES
+  localparam [1:0]  SLVERR = 2'b10,
+                    EXOKAY = 2'b01, // detecting wlast not equal one
+                    OKAY = 2'b00;
 
-always @ (posedge clk or negedge rst_n) begin
-  if(!rst_n) begin
-    b_resp  <= 1'b0;
-    b_valid <= 1'b0;
-  end
-
-  else if (enable && b_ready)
-    begin
-      b_valid <= 1'b1;
-      b_resp  <= OKAY;
+  reg size_err;
+  always @ (posedge clk or negedge rst_n) begin
+    if(!rst_n) begin
+      b_resp  <= 2'b0;
+      b_valid <= 1'b0;
+      b_id <= 'b0;
+      b_aw_rd_ptr <= 0;
+      b_w_rd_ptr <=0;
+      size_err <=0;
     end
 
-  else if (b_ready) // handshake now completed now deassert b_valid
-    b_valid <= 1'b0;
+    else if (write_transfer_done) begin
+        b_valid <= 1'b1;
+        if(fifo_aw_size > 2)
+          size_err <= 1;
+        else
+          size_err <= 0;
+      end
 
-end
+    else if (b_ready && b_valid) begin // handshake now completed now deassert b_valid
+        b_id  <= b_fifo_id;
+        b_resp  <= size_err? SLVERR: slave_w_last? OKAY : EXOKAY;
+        b_valid <= 1'b0;
+        b_aw_rd_ptr <= aw_rd_ptr;
+        b_w_rd_ptr <= w_rd_ptr;
+      end
+
+  end
 
 
 endmodule

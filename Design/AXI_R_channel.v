@@ -1,29 +1,34 @@
+//*******RESPONE IN ORDER********
 module AXI_R_channel (
 
-  input                         clk,
-  input                         rst_n,
+  input               clk,
+  input               rst_n,
 
-  input       [8:0]             beats_no,
-  input                         ar_transfer_done,
+  input               ar_transfer_done,
 
-  input                         slave_data_valid,
-  input       [31:0]            slave_r_data,
+  input               slave_data_valid,
+  input   [31:0]      slave_r_data,
 
-  input       [3:0]              r_fifo_id,
-  input                          r_ready,
+  input   [5:0]       r_fifo_id,
 
-  input       [`ADDR_WIDTH-1:0]  fifo_rd_ptr, // Read pointer of fifo
-  output  reg [`ADDR_WIDTH-1:0]  r_rd_ptr, // Read pointer when RLAST is high
+  input               r_ready,
+  input   [8:0]       beats_no,
 
-  output  reg                    r_resp,
-  output  reg                    r_valid,
-  output  reg [3:0]              r_id,
-  output  reg [31:0]             r_data,
-  output  reg                    r_last
+  input       [`ADDR_WIDTH-1:0] fifo_rd_ptr, // Read pointer of fifo
+  output  reg [`ADDR_WIDTH-1:0] r_rd_ptr, // Read pointer when RLAST is high
+
+
+  output  reg          r_resp,
+  output  reg          r_valid,
+  output  reg [5:0]    r_id,
+  output  reg [31:0]   r_data,
+  output  reg          r_last
   );
 
 
-  //________________________________________READ DATA AND RESPONSE LOGIC________________________________________//
+
+
+  //________________________________________OUTPUT FSM________________________________________//
 
   //RESPONSE VALUES
   localparam reg  SLVERR = 1'b1,
@@ -45,7 +50,7 @@ module AXI_R_channel (
       r_valid <= 1'b0;
       r_last <= 1'b0;
       r_resp <= 0;
-      r_rd_ptr <= 'd0;
+      r_rd_ptr <= 0;
       r_data <= 0;
       r_id <= 0;
     end
@@ -82,6 +87,8 @@ module AXI_R_channel (
       end
 
       HOLD : begin
+        r_valid <= slave_data_valid; // During bursting r_valid assigned to slave valid
+
         if (beats_counter == 9'd0) begin
           cs <= STATE_0;
           r_valid <= 1'b0;
@@ -91,7 +98,6 @@ module AXI_R_channel (
 
         else if (r_ready && slave_data_valid) begin // HANDSHAKE
           r_data <= slave_r_data;
-          r_valid <= 1'b1;
           r_id <= r_fifo_id;
           cs <= HOLD;
           beats_counter <= beats_counter - 9'd1;
@@ -100,14 +106,12 @@ module AXI_R_channel (
           r_resp <= OKAY;
         end
 
-        else if (!slave_data_valid)begin
-          r_valid <= 1'b0;
         end
 
-      end
       default : begin
           r_resp <= OKAY;
           cs <= STATE_0;
+          r_valid <= 0;
         end
       endcase
     end
