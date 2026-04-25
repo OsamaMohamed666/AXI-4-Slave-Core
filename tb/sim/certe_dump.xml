@@ -1,0 +1,91 @@
+<certe_dump>
+  <instance type=" axi_slave_core_test "> 
+     uvm_test_top 
+  
+     <instance type=" axi_slave_core_env "> 
+        m_axi_slave_core_env 
+  
+        <instance type=" axi_slave_core_v_sequencer "> 
+           m_axi_slave_core_v_seqr 
+  
+           <export if_type = "uvm_analysis_export" txn_type = "anonymous"> 
+              rsp_export 
+              <connection>  uvm_test_top.m_axi_slave_core_env.m_axi_slave_core_v_seqr.sqr_rsp_analysis_fifo.analysis_export  </connection> 
+           </export> 
+  
+           <imp if_type = "uvm_seq_item_pull_imp" txn_type = "anonymous"> 
+              seq_item_export 
+           </imp> 
+        </instance> 
+  
+  
+        <instance type=" rd_trans_agent "> 
+           m_rd_trans_agt 
+  
+           <instance type=" rd_trans_driver "> 
+              m_rd_trans_drv 
+  
+              <port if_type = "uvm_analysis_port" txn_type = "anonymous"> 
+                 rsp_port 
+              </port> 
+  
+              <port if_type = "uvm_seq_item_pull_port" txn_type = "anonymous"> 
+                 seq_item_port 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_rd_trans_agt.m_rd_trans_seqr.seq_item_export  </connection> 
+              </port> 
+           </instance> 
+  
+  
+           <instance type=" rd_trans_sequencer "> 
+              m_rd_trans_seqr 
+  
+              <export if_type = "uvm_analysis_export" txn_type = "anonymous"> 
+                 rsp_export 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_rd_trans_agt.m_rd_trans_seqr.sqr_rsp_analysis_fifo.analysis_export  </connection> 
+              </export> 
+  
+              <imp if_type = "uvm_seq_item_pull_imp" txn_type = "anonymous"> 
+                 seq_item_export 
+              </imp> 
+           </instance> 
+  
+        </instance> 
+  
+  
+        <instance type=" wr_trans_agent "> 
+           m_wr_trans_agt 
+  
+           <instance type=" wr_trans_driver "> 
+              m_wr_trans_drv 
+  
+              <port if_type = "uvm_analysis_port" txn_type = "anonymous"> 
+                 rsp_port 
+              </port> 
+  
+              <port if_type = "uvm_seq_item_pull_port" txn_type = "anonymous"> 
+                 seq_item_port 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_wr_trans_agt.m_wr_trans_seqr.seq_item_export  </connection> 
+              </port> 
+           </instance> 
+  
+  
+           <instance type=" wr_trans_sequencer "> 
+              m_wr_trans_seqr 
+  
+              <export if_type = "uvm_analysis_export" txn_type = "anonymous"> 
+                 rsp_export 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_wr_trans_agt.m_wr_trans_seqr.sqr_rsp_analysis_fifo.analysis_export  </connection> 
+              </export> 
+  
+              <imp if_type = "uvm_seq_item_pull_imp" txn_type = "anonymous"> 
+                 seq_item_export 
+              </imp> 
+           </instance> 
+  
+        </instance> 
+  
+     </instance> 
+  
+  </instance> 
+  
+  </certe_dump>

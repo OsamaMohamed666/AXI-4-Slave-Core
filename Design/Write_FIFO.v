@@ -2,8 +2,8 @@
   //====================== TWO FIFOS: One for ADDRESS another for DATA
   //=================================================================================================
 
-  `define ADDR_WIDTH 8
-  `define FIFO_DEPTH (1 << `ADDR_WIDTH)
+  // `define ADDR_WIDTH 8
+  // `define FIFO_DEPTH (1 << `ADDR_WIDTH)
 
   module Write_FIFO(
     //GLOBAL SIGNALS
