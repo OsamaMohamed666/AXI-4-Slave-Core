@@ -1,6 +1,3 @@
-
-// `include "../axi_slave_core_seq_item.sv"
-// `include "../axi_slave_core_if.sv"
 class rd_trans_driver extends uvm_driver #(axi_slave_core_seq_item);
 
   // Factory Registration
@@ -54,21 +51,6 @@ class rd_trans_driver extends uvm_driver #(axi_slave_core_seq_item);
     vif.cb.slave_r_data_valid <= 0;
     vif.cb.slave_r_data <= 0;
 
-
-    // // Reset all signals of Write Transaction
-    // vif.cb.aw_valid <= 0;
-    // vif.cb.w_valid <= 0;
-    // vif.cb.aw_addr <= 0;
-    // vif.cb.aw_id <= 0;
-    // vif.cb.aw_len <= 0;
-    // vif.cb.aw_size <= 0;
-    // vif.cb.aw_burst <= 0;
-    // vif.cb.aw_prot <= 0;
-    // vif.cb.w_data <= 0;
-    // vif.cb.w_strb <= 0;
-    // vif.cb.w_last <= 0;
-    // vif.cb.b_ready <= 0;
-    // vif.cb.slave_aw_write_ready <= 0;
     #RESET_PERIOD
     vif.rst_n <= 1; // De-assert reset after some time
   endtask

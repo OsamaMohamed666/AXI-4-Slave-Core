@@ -36,6 +36,36 @@
            </instance> 
   
   
+           <instance type=" rd_trans_mon_in "> 
+              m_rd_trans_mon_in 
+  
+              <port if_type = "uvm_analysis_port" txn_type = "anonymous"> 
+                 AR_trans_collect_port_in 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_rd_trans_scb.ar_item_export_in  </connection> 
+              </port> 
+  
+              <port if_type = "uvm_analysis_port" txn_type = "anonymous"> 
+                 R_trans_collect_port_in 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_rd_trans_scb.r_item_export_in  </connection> 
+              </port> 
+           </instance> 
+  
+  
+           <instance type=" rd_trans_mon_out "> 
+              m_rd_trans_mon_out 
+  
+              <port if_type = "uvm_analysis_port" txn_type = "anonymous"> 
+                 AR_trans_collect_port_out 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_rd_trans_scb.ar_item_export_out  </connection> 
+              </port> 
+  
+              <port if_type = "uvm_analysis_port" txn_type = "anonymous"> 
+                 R_trans_collect_port_out 
+                 <connection>  uvm_test_top.m_axi_slave_core_env.m_rd_trans_scb.r_item_export_out  </connection> 
+              </port> 
+           </instance> 
+  
+  
            <instance type=" rd_trans_sequencer "> 
               m_rd_trans_seqr 
   
@@ -49,6 +79,27 @@
               </imp> 
            </instance> 
   
+        </instance> 
+  
+  
+        <instance type=" rd_trans_scoreboard "> 
+           m_rd_trans_scb 
+  
+           <imp if_type = "uvm_analysis_imp_MON_IN_AR" txn_type = "anonymous"> 
+              ar_item_export_in 
+           </imp> 
+  
+           <imp if_type = "uvm_analysis_imp_MON_OUT_AR" txn_type = "anonymous"> 
+              ar_item_export_out 
+           </imp> 
+  
+           <imp if_type = "uvm_analysis_imp_MON_IN_R" txn_type = "anonymous"> 
+              r_item_export_in 
+           </imp> 
+  
+           <imp if_type = "uvm_analysis_imp_MON_OUT_R" txn_type = "anonymous"> 
+              r_item_export_out 
+           </imp> 
         </instance> 
   
   

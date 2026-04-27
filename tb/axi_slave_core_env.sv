@@ -16,6 +16,7 @@ class axi_slave_core_env extends uvm_env;
 
   // Read Transaction
   rd_trans_agent m_rd_trans_agt;
+  rd_trans_scoreboard m_rd_trans_scb;
 
   // Write Transaction
   wr_trans_agent m_wr_trans_agt;
@@ -39,6 +40,9 @@ class axi_slave_core_env extends uvm_env;
     // Agents
     m_rd_trans_agt = rd_trans_agent::type_id::create("m_rd_trans_agt",this);
     m_wr_trans_agt = wr_trans_agent::type_id::create("m_wr_trans_agt",this);
+
+    // Scoreboards
+    m_rd_trans_scb = rd_trans_scoreboard::type_id::create("m_rd_trans_scb",this);
 
 
    // Configurations
@@ -64,6 +68,14 @@ class axi_slave_core_env extends uvm_env;
     // Connecting vsequencer to sequencers
     m_axi_slave_core_v_seqr.m_rd_trans_seqr = m_rd_trans_agt.m_rd_trans_seqr;
     m_axi_slave_core_v_seqr.m_wr_trans_seqr = m_wr_trans_agt.m_wr_trans_seqr;
+
+    // Connecting Read trans Scoreboard to monitors
+    m_rd_trans_agt.m_rd_trans_mon_in.AR_trans_collect_port_in.connect(m_rd_trans_scb.ar_item_export_in);
+    m_rd_trans_agt.m_rd_trans_mon_in.R_trans_collect_port_in.connect(m_rd_trans_scb.r_item_export_in);
+
+    m_rd_trans_agt.m_rd_trans_mon_out.AR_trans_collect_port_out.connect(m_rd_trans_scb.ar_item_export_out);
+    m_rd_trans_agt.m_rd_trans_mon_out.R_trans_collect_port_out.connect(m_rd_trans_scb.r_item_export_out);
+
   endfunction
 
 endclass

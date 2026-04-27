@@ -41,10 +41,12 @@ module Read_FIFO(
   reg [`ADDR_WIDTH-1:0] wr_ptr; // Write pointer
   // reg [`ADDR_WIDTH-1:0] rd_ptr; // read pointer
 
-
+  // Temp for wr ptr + 1 to avoid any potential issues with non-blocking assignment rules
+  wire [`ADDR_WIDTH-1:0] wr_ptr_nxt;
+  assign wr_ptr_nxt = wr_ptr + 1;
 
   //Flags
-  assign full_flag = (wr_ptr +1 == rd_ptr );
+  assign full_flag = (wr_ptr_nxt == rd_ptr );
   assign empty_flag = (wr_ptr == rd_ptr);
 
   // Write logic
@@ -75,20 +77,6 @@ module Read_FIFO(
       strt_rd_transaction <= 1'b0;
     end
 
-    // FIRST CONDITION TO READ
-    else if(ar_fifo_rd_en && !empty_flag && (rd_ptr == 'd0)) begin // first reading OF FIFO
-      ar_fifo_addr <= fifo_r[rd_ptr][31:0];
-      ar_fifo_prot <= fifo_r[rd_ptr][34:32];
-      ar_fifo_burst <= fifo_r[rd_ptr][36:35];
-      ar_fifo_size <= fifo_r[rd_ptr][39:37];
-      ar_fifo_len <= fifo_r[rd_ptr][47:40];
-      r_fifo_id <= fifo_r[rd_ptr][53:48];
-      rd_ptr <= rd_ptr +1;
-      strt_rd_transaction <= 1'b1;
-
-    end
-
-    //SECOND CONDITION TO READ
     else if (ar_fifo_rd_en && !empty_flag && (rd_ptr == r_rd_ptr)) begin
       ar_fifo_addr <= fifo_r[rd_ptr][31:0];
       ar_fifo_prot <= fifo_r[rd_ptr][34:32];

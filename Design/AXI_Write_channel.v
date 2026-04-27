@@ -276,17 +276,14 @@
     // Axlen belong to {1,3,7,15} >>>>> no_beats == {2,4,8,16}
     // Starting address must be alligned to lower addr
 
-    // Flag to indicate starting address
-    reg is_starting_addr;
 
     // Calculating boundry and Checking Address alignment for starting address
     //-------------------------------------------
+    reg [31:0] sa; //starting addr
     wire [31:0] aligned_sa; // aligned starting addr
-    wire [31:0] sa; //starting addr
     wire [31:0] wrap_boundry_size;
     wire [31:0] wrap_boundry_addr;
 
-    assign sa =(is_starting_addr && is_wrap)? slave_aw_addr : 32'b0;
     assign wrap_boundry_size = (beats_no << fifo_aw_size); // boundry size
     assign aligned_sa = sa & ~(wrap_boundry_size - 31'd1); // alligned address
     assign wrap_boundry_addr = aligned_sa + wrap_boundry_size; // boundry address
@@ -302,36 +299,32 @@
     always @ (posedge clk or negedge rst_n) begin
       if (!rst_n) begin
         slave_aw_addr <= 32'b0;
-        is_starting_addr <=0;
+        sa <= 32'b0;
       end
       // Getting start address
       else if (!write_trans_valid && (is_incr || is_wrap) && strt_addr_transfer) begin
         slave_aw_addr <= fifo_aw_addr; //start address
-        is_starting_addr <= 1'b1;
+        sa <= fifo_aw_addr;
       end
       // For Wrap: The boundary was crossed case
-      else if (addr_burst_busy && is_wrap && slave_write_ready && addr_behind_data && !(aw_address_count == beats_no) && !(slave_aw_addr + beats_size < wrap_boundry_addr)) begin
-        slave_aw_addr <= (slave_aw_addr + beats_size) -  wrap_boundry_addr ;
-        is_starting_addr <= 1'b0;
+      else if (addr_burst_busy && is_wrap && slave_write_ready && addr_behind_data &&
+              !(aw_address_count == beats_no) && !(slave_aw_addr + beats_size < wrap_boundry_addr))begin
+        slave_aw_addr <= (slave_aw_addr + beats_size) -  wrap_boundry_size;
       end
       // For INCR && normal Wrap
-      else if (addr_burst_busy && (is_incr || is_wrap) && slave_write_ready && addr_behind_data && !(aw_address_count == beats_no)) begin
+      else if (addr_burst_busy && (is_incr || is_wrap) && slave_write_ready && addr_behind_data &&
+              !(aw_address_count == beats_no)) begin
         slave_aw_addr <= slave_aw_addr + beats_size;
-        is_starting_addr <= 1'b0;
       end
       else if (fifo_aw_burst == 2'b00)begin
-        is_starting_addr <= 0;
         slave_aw_addr <= addr_fixed;
       end
-      else
-        is_starting_addr <=0;
     end
 
     //------------------------------------------------------------
     // WRITE TRANSACTION VALID OUTPUT
     //------------------------------------------------------------
     assign  write_trans_valid_temp = addr_burst_busy && data_burst_busy;
-
 
     always @ (posedge clk or negedge rst_n) begin
       if (!rst_n) begin

@@ -73,12 +73,14 @@
     // Write Pointer
     reg [`ADDR_WIDTH-1:0] aw_wr_ptr;
 
+    // Temp for wr ptr + 1 to avoid any potential issues with non-blocking assignment rules
+    wire [`ADDR_WIDTH-1:0] aw_wr_ptr_nxt;
+    assign aw_wr_ptr_nxt = aw_wr_ptr + 1;
 
     //Flags
     wire addr_empty_flag;
-
     assign addr_empty_flag = (aw_wr_ptr == aw_rd_ptr);
-    assign addr_full_flag = (aw_wr_ptr +1 == aw_rd_ptr );
+    assign addr_full_flag = (aw_wr_ptr_nxt == aw_rd_ptr );
 
 
     //------------------------------------------
@@ -114,8 +116,8 @@
         strt_addr_transfer <= 1'b0;
       end
 
-      // FIRST CONDITION TO READ: FIRST READING OF FIFO WHEN IT GOT A
-      else if(aw_fifo_rd_en && !addr_empty_flag && (aw_rd_ptr == 'd0)) begin
+      // FIRST CONDITION TO READ
+      else if (aw_fifo_rd_en && !addr_empty_flag && (aw_rd_ptr == b_aw_rd_ptr)) begin
         aw_fifo_addr <= fifo_aw[aw_rd_ptr][31:0];
         aw_fifo_prot <= fifo_aw[aw_rd_ptr][34:32];
         aw_fifo_burst <= fifo_aw[aw_rd_ptr][36:35];
@@ -124,7 +126,6 @@
         b_fifo_id <= fifo_aw[aw_rd_ptr][53:48];
         aw_rd_ptr <= aw_rd_ptr +1;
         strt_addr_transfer <= 1'b1;
-
       end
 
       // SECOND CONDITION TO READ: if back 2 back transactions
@@ -139,17 +140,18 @@
         strt_addr_transfer <= 1'b1;
       end
 
-      // THIRD CONDITION TO READ
-      else if (aw_fifo_rd_en && !addr_empty_flag && (aw_rd_ptr == b_aw_rd_ptr)) begin
-        aw_fifo_addr <= fifo_aw[aw_rd_ptr][31:0];
-        aw_fifo_prot <= fifo_aw[aw_rd_ptr][34:32];
-        aw_fifo_burst <= fifo_aw[aw_rd_ptr][36:35];
-        aw_fifo_size <= fifo_aw[aw_rd_ptr][39:37];
-        aw_fifo_len <= fifo_aw[aw_rd_ptr][47:40];
-        b_fifo_id <= fifo_aw[aw_rd_ptr][53:48];
-        aw_rd_ptr <= aw_rd_ptr +1;
-        strt_addr_transfer <= 1'b1;
-      end
+      // // INITIAL CONDITION TO READ: FIRST READING OF FIFO WHEN IT GOT A
+      // else if(aw_fifo_rd_en && !addr_empty_flag && (aw_rd_ptr == 'd0 && b_aw_rd_ptr == 'd0)) begin
+      //   aw_fifo_addr <= fifo_aw[aw_rd_ptr][31:0];
+      //   aw_fifo_prot <= fifo_aw[aw_rd_ptr][34:32];
+      //   aw_fifo_burst <= fifo_aw[aw_rd_ptr][36:35];
+      //   aw_fifo_size <= fifo_aw[aw_rd_ptr][39:37];
+      //   aw_fifo_len <= fifo_aw[aw_rd_ptr][47:40];
+      //   b_fifo_id <= fifo_aw[aw_rd_ptr][53:48];
+      //   aw_rd_ptr <= aw_rd_ptr +1;
+      //   strt_addr_transfer <= 1'b1;
+
+      // end
 
       else
         strt_addr_transfer <= 1'b0;
@@ -167,9 +169,13 @@
     // Write Pointers
     reg [`ADDR_WIDTH-1:0] w_wr_ptr;
 
+    // Temp for wr ptr + 1 to avoid any potential issues with non-blocking assignment rules
+    wire [`ADDR_WIDTH-1:0] w_wr_ptr_nxt;
+    assign w_wr_ptr_nxt = w_wr_ptr + 1;
+
     //Flags
     assign data_empty_flag = (w_wr_ptr == w_rd_ptr);
-    assign data_full_flag = (w_wr_ptr +1 == w_rd_ptr );
+    assign data_full_flag = (w_wr_ptr_nxt == w_rd_ptr );
 
     //------------------------------------------
     // WRITE LOGIC
@@ -199,7 +205,7 @@
       end
 
       // FIRST CONDITION TO READ: THE INITIAL READING FROM FIFO
-      else if((!data_burst_busy) && !data_empty_flag && (w_rd_ptr == 'd0)) begin
+      else if((!data_burst_busy) && !data_empty_flag && (w_rd_ptr =='d0 && b_w_rd_ptr =='d0)) begin
         w_fifo_data <= fifo_w[w_rd_ptr][31:0];
         w_fifo_last <= fifo_w[w_rd_ptr][32];
         w_fifo_strb <= fifo_w[w_rd_ptr][36:33];

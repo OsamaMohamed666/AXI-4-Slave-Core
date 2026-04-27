@@ -1,7 +1,3 @@
-// `include "rd_trans_driver.sv"
-// `include "rd_trans_sequencer.sv"
-// `include "rd_trans_config.sv"
-
 class rd_trans_agent extends uvm_agent;
 
   // Factory Registration
@@ -15,9 +11,11 @@ class rd_trans_agent extends uvm_agent;
   //-------------------------------------------
   // CLASSES HANDELS
   //-------------------------------------------
-  rd_trans_driver m_rd_trans_drv;
-  rd_trans_sequencer m_rd_trans_seqr;
   rd_trans_config m_rd_config;
+  rd_trans_sequencer m_rd_trans_seqr;
+  rd_trans_driver m_rd_trans_drv;
+  rd_trans_mon_in m_rd_trans_mon_in;
+  rd_trans_mon_out m_rd_trans_mon_out;
 
   //-------------------------------------------
   // BUILD PHASE
@@ -27,6 +25,9 @@ class rd_trans_agent extends uvm_agent;
 
     if(!uvm_config_db #(rd_trans_config)::get(this,"","rd_trans_config",m_rd_config))
       `uvm_fatal(get_name(), "Failed to get configuration for rd_trans_config");
+
+    m_rd_trans_mon_in = rd_trans_mon_in::type_id::create("m_rd_trans_mon_in",this);
+    m_rd_trans_mon_out = rd_trans_mon_out::type_id::create("m_rd_trans_mon_out",this);
 
     if(m_rd_config.is_active == UVM_ACTIVE) begin
       m_rd_trans_drv = rd_trans_driver::type_id::create("m_rd_trans_drv",this);

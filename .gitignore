@@ -1,0 +1,9 @@
+*.vcd
+*.qdb
+*.log
+*.qtl
+*.wlf
+*.ucdb
+*.mpf
+*.mti
+*.vstf

@@ -83,17 +83,13 @@ module AXI_AR_channel(
   // Axlen belong to {1,3,7,15} >>>>> no_beats == {2,4,8,16}
   // Starting address must be alligned to lower addr
 
-  // flag to indicate starting address
-  reg is_starting_addr;
 
   // Calculating boundry and Checking Address alignment for starting address
   //-------------------------------------------
+  reg [31:0] sa; //starting addr
   wire [31:0] aligned_sa; // aligned starting addr
-  wire [31:0] sa; //starting addr
   wire [31:0] wrap_boundry_size;
   wire [31:0] wrap_boundry_addr;
-
-  assign sa =(is_starting_addr && is_wrap)? current_addr : 32'b0;
 
   assign wrap_boundry_size = (beats_no << fifo_ar_size); // boundry size
   assign aligned_sa = sa & ~(wrap_boundry_size - 31'd1); // alligned address
@@ -137,22 +133,19 @@ module AXI_AR_channel(
   always @ (posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       current_addr <= 32'b0;
-      is_starting_addr <=0;
+      sa <= 32'b0;
     end
     else if (!address_count_busy && (is_incr || is_wrap) && strt_rd_transaction) begin
       current_addr <= fifo_ar_addr; //start address
-      is_starting_addr <= 1'b1;
+      sa <= fifo_ar_addr;
     end
-    else if (address_count_busy && is_wrap && !(current_addr + beats_size < wrap_boundry_addr) && slave_addr_ready) begin
-      current_addr <= (current_addr + beats_size) -  wrap_boundry_addr ;
-      is_starting_addr <= 1'b0;
+    // For wrap burst, when the address reaches the boundry, it should wrap to the start address
+    else if (address_count_busy && is_wrap && (current_addr + beats_size > wrap_boundry_addr) && slave_addr_ready) begin
+      current_addr <= (current_addr + beats_size) -  wrap_boundry_size ;
     end
     else if (address_count_busy && (is_incr || is_wrap) && slave_addr_ready) begin
       current_addr <= current_addr + beats_size;
-      is_starting_addr <= 1'b0;
     end
-    else
-      is_starting_addr <= 0;
   end
 
   //-------------------------------------------
@@ -195,7 +188,7 @@ module AXI_AR_channel(
       slave_addr_valid_tmp = 1'b1;
       slave_ar_addr_tmp = (fifo_ar_burst == 2'b00) ||(fifo_ar_burst == 2'b11) ? addr_fixed: current_addr;
 
-      if (address_count == fifo_ar_len)
+      if ((address_count == fifo_ar_len) && slave_addr_ready) // last address transfer
         ns = IDLE;
       else
         ns = BURSTING;
