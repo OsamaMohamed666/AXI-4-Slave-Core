@@ -12,17 +12,15 @@ class rd_trans_mon_in extends uvm_monitor;
   axi_slave_core_seq_item m_r_seq_item;
 
   //-------------------------------------------
-  // ANALYSIS PORTS (R , AR)
+  // ANALYSIS PORTS
   //-------------------------------------------
-  uvm_analysis_port #(axi_slave_core_seq_item) AR_trans_collect_port_in;
-  uvm_analysis_port #(axi_slave_core_seq_item) R_trans_collect_port_in;
+  uvm_analysis_port #(axi_slave_core_seq_item) Read_collect_port_in;
 
   // Constructor
   function new (string name = "rd_trans_mon_in", uvm_component parent);
     super.new(name,parent);
 
-    AR_trans_collect_port_in = new("AR_trans_collect_port_in",this);
-    R_trans_collect_port_in = new("R_trans_collect_port_in",this);
+    Read_collect_port_in = new("Read_collect_port_in",this);
   endfunction
 
   //-------------------------------------------
@@ -68,7 +66,8 @@ class rd_trans_mon_in extends uvm_monitor;
       m_ar_seq_item.ar_prot = vif.ar_prot;
       m_ar_seq_item.ar_valid = vif.ar_valid;
       m_ar_seq_item.ar_ready = vif.ar_ready;
-      AR_trans_collect_port_in.write(m_ar_seq_item);
+      m_ar_seq_item.axi_channels = m_ar_seq_item.AR_CHANNEL;
+      Read_collect_port_in.write(m_ar_seq_item);
     end
   endtask
 
@@ -82,7 +81,8 @@ class rd_trans_mon_in extends uvm_monitor;
       @(negedge vif.clk iff (vif.rst_n && vif.r_valid && vif.r_ready))
       m_r_seq_item.slave_r_data = vif.slave_r_data;
       m_r_seq_item.slave_r_data_valid = vif.slave_r_data_valid;
-      R_trans_collect_port_in.write(m_r_seq_item);
+      m_r_seq_item.axi_channels = m_r_seq_item.R_CHANNEL;
+      Read_collect_port_in.write(m_r_seq_item);
     end
   endtask
 

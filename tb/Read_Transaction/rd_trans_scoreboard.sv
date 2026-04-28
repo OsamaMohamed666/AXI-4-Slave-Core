@@ -1,8 +1,6 @@
 //DECLARING IMPLEMENTATION ANAYLSIS PORT
-`uvm_analysis_imp_decl(_MON_IN_AR)
-`uvm_analysis_imp_decl(_MON_IN_R)
-`uvm_analysis_imp_decl(_MON_OUT_AR)
-`uvm_analysis_imp_decl(_MON_OUT_R)
+`uvm_analysis_imp_decl(_MON_IN)
+`uvm_analysis_imp_decl(_MON_OUT)
 
 class rd_trans_scoreboard extends uvm_scoreboard;
 
@@ -10,20 +8,15 @@ class rd_trans_scoreboard extends uvm_scoreboard;
   `uvm_component_utils(rd_trans_scoreboard)
 
   // Analysis Ports
-  uvm_analysis_imp_MON_IN_AR #(axi_slave_core_seq_item,rd_trans_scoreboard) ar_item_export_in;
-  uvm_analysis_imp_MON_IN_R #(axi_slave_core_seq_item,rd_trans_scoreboard) r_item_export_in;
-
-  uvm_analysis_imp_MON_OUT_AR #(axi_slave_core_seq_item,rd_trans_scoreboard) ar_item_export_out;
-  uvm_analysis_imp_MON_OUT_R #(axi_slave_core_seq_item,rd_trans_scoreboard) r_item_export_out;
+  uvm_analysis_imp_MON_IN #(axi_slave_core_seq_item,rd_trans_scoreboard) read_item_export_in;
+  uvm_analysis_imp_MON_OUT #(axi_slave_core_seq_item,rd_trans_scoreboard) read_item_export_out;
 
   // Constructor
   function new (string name = "rd_trans_scoreboard", uvm_component parent);
     super.new(name,parent);
 
-    ar_item_export_in = new("ar_item_export_in",this);
-    r_item_export_in = new("r_item_export_in",this);
-    ar_item_export_out = new("ar_item_export_out",this);
-    r_item_export_out = new("r_item_export_out",this);
+    read_item_export_in = new("read_item_export_in",this);
+    read_item_export_out = new("read_item_export_out",this);
   endfunction
 
   //-------------------------------------------
@@ -47,28 +40,25 @@ class rd_trans_scoreboard extends uvm_scoreboard;
   //-------------------------------------------
   // WRITE FUNCTIONS
   //-------------------------------------------
-  // AR Channel Input
+  // Input
   //-------------------------------------------
-  function void write_MON_IN_AR(axi_slave_core_seq_item req);
-    m_ar_in_q.push_back(req);
-  endfunction
-  // AR Channel Output
-  //-------------------------------------------
-  function void write_MON_OUT_AR(axi_slave_core_seq_item req);
-    m_ar_out_q.push_back(req);
+  function void write_MON_IN(axi_slave_core_seq_item req);
+    if(req.axi_channels == req.AR_CHANNEL)
+      m_ar_in_q.push_back(req);
+    else if(req.axi_channels == req.R_CHANNEL)
+      m_r_in_q.push_back(req);
   endfunction
 
 
-  // R Channel Input
+  // Output
   //-------------------------------------------
-  function void write_MON_IN_R(axi_slave_core_seq_item req);
-    m_r_in_q.push_back(req);
+  function void write_MON_OUT(axi_slave_core_seq_item req);
+    if(req.axi_channels == req.AR_CHANNEL)
+      m_ar_out_q.push_back(req);
+    else if(req.axi_channels == req.R_CHANNEL)
+      m_r_out_q.push_back(req);
   endfunction
-  // R Channel Output
-  //-------------------------------------------
-  function void write_MON_OUT_R(axi_slave_core_seq_item req);
-    m_r_out_q.push_back(req);
-  endfunction
+
 
   // Data Members
   axi_slave_core_seq_item ar_in_item, ar_out_item;
@@ -129,15 +119,15 @@ class rd_trans_scoreboard extends uvm_scoreboard;
           else begin
             `uvm_info("AR-Channel", $sformatf("\n\nSUCCESSFUL AR TRANSFER NUMBER: %0d OF LENGTH = %0d\n%s",
                                               ar_beat_count, ar_in_item.ar_len + 1, `DASH_LINE),
-                                              UVM_LOW)
+                                              UVM_MEDIUM)
             `uvm_info("AR Address Matched!", $sformatf(" Expected: %h, Got: %h , burst type: %0d, size: %0d, len: %0d",
                                                       ar_address[0], ar_out_item.slave_ar_addr,
                                                       ar_in_item.ar_burst, ar_in_item.ar_size,
-                                                      ar_in_item.ar_len), UVM_LOW)
+                                                      ar_in_item.ar_len), UVM_MEDIUM)
             `uvm_info("AR Prot Matched!", $sformatf(" Expected: %h, Got: %h",
                                                       ar_in_item.ar_prot,ar_out_item.slave_ar_prot)
-                                                      ,UVM_LOW)
-            `uvm_info("AR-Channel", $sformatf("\n%s\n", `DASH_LINE),UVM_LOW)
+                                                      ,UVM_MEDIUM)
+            `uvm_info("AR-Channel", $sformatf("\n%s\n", `DASH_LINE),UVM_MEDIUM)
 
             ar_crr_cnt++;
           end
@@ -202,14 +192,14 @@ class rd_trans_scoreboard extends uvm_scoreboard;
           end
 
           else begin
-            `uvm_info("R-Channel", $sformatf("\n\nSUCCESSFUL R TRANSFER NUMBER: %0d OF LENGTH = %0d\n%s", r_beat_count, ar_in_item.ar_len + 1, `DASH_LINE),UVM_LOW)
+            `uvm_info("R-Channel", $sformatf("\n\nSUCCESSFUL R TRANSFER NUMBER: %0d OF LENGTH = %0d\n%s", r_beat_count, ar_in_item.ar_len + 1, `DASH_LINE),UVM_MEDIUM)
             `uvm_info("R Data Matched!", $sformatf("Expected: %h, Got: %h",
-                                            r_in_item.slave_r_data, r_out_item.r_data), UVM_LOW)
+                                            r_in_item.slave_r_data, r_out_item.r_data), UVM_MEDIUM)
             `uvm_info("R ID Matched!", $sformatf("Expected: %h, Got: %h",
-                                            ar_in_item.ar_id, r_out_item.r_id), UVM_LOW)
+                                            ar_in_item.ar_id, r_out_item.r_id), UVM_MEDIUM)
             `uvm_info("R Last Matched", $sformatf("Expected: %h, Got: %h",
-                                            r_in_item.r_last, r_out_item.r_last), UVM_LOW)
-            `uvm_info("R-Channel", $sformatf("\n%s\n", `DASH_LINE),UVM_LOW)
+                                            r_in_item.r_last, r_out_item.r_last), UVM_MEDIUM)
+            `uvm_info("R-Channel", $sformatf("\n%s\n", `DASH_LINE),UVM_MEDIUM)
 
             r_crr_cnt++;
           end

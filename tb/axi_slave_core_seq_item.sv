@@ -81,6 +81,18 @@ class axi_slave_core_seq_item extends uvm_sequence_item;
   rand bit           slave_r_data_valid;
   rand bit [31:0]    slave_r_data;
 
+
+  // Enum to distinguish between different channels
+  typedef enum bit [2:0] {  AR_CHANNEL = 3'b000,
+                            R_CHANNEL = 3'b001,
+                            W_CHANNEL = 3'b010,
+                            AW_CHANNEL = 3'b011,
+                            B_CHANNEL = 3'b100
+
+  } axi_channels_e;
+
+  axi_channels_e axi_channels;
+
   //-------------------------------------------
   // CONSTRAINTS
   //-------------------------------------------

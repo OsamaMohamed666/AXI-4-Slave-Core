@@ -124,4 +124,6 @@ interface axi_slave_core_if( input bit clk);
     output slave_r_data_valid;
     output slave_r_data;
   endclocking
+
+
 endinterface

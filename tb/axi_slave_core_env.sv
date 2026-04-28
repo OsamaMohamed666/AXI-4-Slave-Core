@@ -70,12 +70,8 @@ class axi_slave_core_env extends uvm_env;
     m_axi_slave_core_v_seqr.m_wr_trans_seqr = m_wr_trans_agt.m_wr_trans_seqr;
 
     // Connecting Read trans Scoreboard to monitors
-    m_rd_trans_agt.m_rd_trans_mon_in.AR_trans_collect_port_in.connect(m_rd_trans_scb.ar_item_export_in);
-    m_rd_trans_agt.m_rd_trans_mon_in.R_trans_collect_port_in.connect(m_rd_trans_scb.r_item_export_in);
-
-    m_rd_trans_agt.m_rd_trans_mon_out.AR_trans_collect_port_out.connect(m_rd_trans_scb.ar_item_export_out);
-    m_rd_trans_agt.m_rd_trans_mon_out.R_trans_collect_port_out.connect(m_rd_trans_scb.r_item_export_out);
-
+    m_rd_trans_agt.m_rd_trans_mon_in.Read_collect_port_in.connect(m_rd_trans_scb.read_item_export_in);
+    m_rd_trans_agt.m_rd_trans_mon_out.Read_collect_port_out.connect(m_rd_trans_scb.read_item_export_out);
   endfunction
 
 endclass

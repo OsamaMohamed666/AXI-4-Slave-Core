@@ -14,13 +14,13 @@ package axi_slave_core_package;
   //-------------------------------------------
   `include "uvm_macros.svh"
   import uvm_pkg::*;
-  // Sequence Items
+
+  // Sequence Item
   //--------------------------------------------
   `include "axi_slave_core_seq_item.sv"
 
   // Read Transaction
   //--------------------------------------------
-
   `include "Read_Transaction/rd_trans_config.sv"
   `include "Read_Transaction/rd_trans_sequence.sv"
   `include "Read_Transaction/rd_trans_sequencer.sv"
