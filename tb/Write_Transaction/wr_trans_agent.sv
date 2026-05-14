@@ -18,6 +18,9 @@ class wr_trans_agent extends uvm_agent;
   wr_trans_driver m_wr_trans_drv;
   wr_trans_sequencer m_wr_trans_seqr;
   wr_trans_config m_wr_config;
+  wr_trans_mon_in m_wr_trans_mon_in;
+  wr_trans_mon_out m_wr_trans_mon_out;
+
 
   //-------------------------------------------
   // BUILD PHASE
@@ -27,6 +30,9 @@ class wr_trans_agent extends uvm_agent;
 
     if(!uvm_config_db #(wr_trans_config)::get(this,"","wr_trans_config",m_wr_config))
       `uvm_fatal(get_name(), "Failed to get configuration for wr_trans_config");
+
+      m_wr_trans_mon_in = wr_trans_mon_in::type_id::create("m_wr_trans_mon_in",this);
+      m_wr_trans_mon_out = wr_trans_mon_out::type_id::create("m_wr_trans_mon_out",this);
 
     if(m_wr_config.is_active == UVM_ACTIVE) begin
       m_wr_trans_drv = wr_trans_driver::type_id::create("m_wr_trans_drv",this);

@@ -12,7 +12,7 @@ class rd_trans_mon_out extends uvm_monitor;
   axi_slave_core_seq_item m_r_seq_item;
 
   //-------------------------------------------
-  // ANALYSIS PORTS (R , AR)
+  // ANALYSIS PORT
   //-------------------------------------------
   uvm_analysis_port #(axi_slave_core_seq_item) Read_collect_port_out;
 

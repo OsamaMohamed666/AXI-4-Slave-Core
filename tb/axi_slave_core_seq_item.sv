@@ -48,8 +48,8 @@ class axi_slave_core_seq_item extends uvm_sequence_item;
   logic [31:0]       slave_w_data;
   logic [3:0]        slave_w_strb;
   logic              write_aw_trans_valid;
-  rand bit           slave_aw_write_ready;
 
+  rand bit           slave_aw_write_ready;
 
   // Second Read Transaction
   //-------------------------------------------

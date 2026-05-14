@@ -8,3 +8,5 @@
 *.mti
 *.vstf
 *.qpg
+tb/sim/work/_info
+/tb/sim/work

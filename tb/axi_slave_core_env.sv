@@ -20,6 +20,7 @@ class axi_slave_core_env extends uvm_env;
 
   // Write Transaction
   wr_trans_agent m_wr_trans_agt;
+  wr_trans_scoreboard m_wr_trans_scb;
 
   // Configurations
   rd_trans_config m_rd_config;
@@ -43,9 +44,11 @@ class axi_slave_core_env extends uvm_env;
 
     // Scoreboards
     m_rd_trans_scb = rd_trans_scoreboard::type_id::create("m_rd_trans_scb",this);
+    m_wr_trans_scb = wr_trans_scoreboard::type_id::create("m_wr_trans_scb",this);
 
 
-   // Configurations
+
+    // Configurations
     //-------------------------------------------
     // Read Config
     if (!uvm_config_db#(rd_trans_config)::get(this, "", "rd_trans_config", m_rd_config))
@@ -72,6 +75,10 @@ class axi_slave_core_env extends uvm_env;
     // Connecting Read trans Scoreboard to monitors
     m_rd_trans_agt.m_rd_trans_mon_in.Read_collect_port_in.connect(m_rd_trans_scb.read_item_export_in);
     m_rd_trans_agt.m_rd_trans_mon_out.Read_collect_port_out.connect(m_rd_trans_scb.read_item_export_out);
+
+    // Connecting Write trans Scoreboard to monitors
+    m_wr_trans_agt.m_wr_trans_mon_in.Write_collect_port_in.connect(m_wr_trans_scb.write_item_export_in);
+    m_wr_trans_agt.m_wr_trans_mon_out.Write_collect_port_out.connect(m_wr_trans_scb.write_item_export_out);
   endfunction
 
 endclass

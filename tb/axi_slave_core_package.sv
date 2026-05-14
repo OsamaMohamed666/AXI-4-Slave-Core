@@ -4,7 +4,7 @@ package axi_slave_core_package;
 
   `define DASH_LINE "---------------------------------------------------------------------------------"
 
-  parameter int SEQUENCES = 10000;
+  parameter int SEQUENCES = 100000;
   parameter int CLK_PERIOD = 10;
   parameter int RESET_PERIOD = 20;
 
@@ -36,7 +36,10 @@ package axi_slave_core_package;
   `include "Write_Transaction/wr_trans_sequence.sv"
   `include "Write_Transaction/wr_trans_sequencer.sv"
   `include "Write_Transaction/wr_trans_driver.sv"
+  `include "Write_Transaction/wr_trans_mon_in.sv"
+  `include "Write_Transaction/wr_trans_mon_out.sv"
   `include "Write_Transaction/wr_trans_agent.sv"
+  `include "Write_Transaction/wr_trans_scoreboard.sv"
 
   // TOP Level
   //-------------------------------------------

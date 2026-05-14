@@ -11,7 +11,6 @@
 
     //DATA CHANNEL
     input  [31:0]      fifo_w_data,
-    input              fifo_w_last, // flag to indicate that the last data from master
     input  [3:0]       fifo_w_strb,
     output reg         w_ready,
 
@@ -20,11 +19,10 @@
 
     // output data to slave
     output reg [31:0]  slave_w_data,
-    output reg         slave_w_last,
     output reg [3:0]   slave_w_strb,
 
 
-    output reg       [`ADDR_WIDTH-1:0] w_data_count,
+    output reg       [`ADDR_WIDTH:0] w_data_count,
 
     //ADDRESS CHANNEL
     input      [31:0]  fifo_aw_addr,
@@ -76,11 +74,11 @@
     //________________________________________TRANSFER SCENARIOS________________________________________//
 
     // Internal signals
-    wire                        write_trans_valid_temp;
+    reg                         write_trans_valid_temp;
 
     wire  [31:0]                addr_fixed; // Address temp for Fixed burst
 
-    reg   [`ADDR_WIDTH -1 : 0]  aw_address_count;
+    reg   [`ADDR_WIDTH  : 0]    aw_address_count;
     wire                        both_same_beat; // Address and data on the same beat
 
     assign both_same_beat = (aw_address_count == w_data_count)? 1'b1 : 1'b0;
@@ -92,7 +90,8 @@
                           ADDRstrt_DATAhold =3'b001,
                           DATAstrt_ADDRhold =3'b011,
                           BOTH_IN_PROGRESS = 3'b010,
-                          DATA_EMTPY_DURING_BURSTING = 3'b110;
+                          DATA_EMTPY_DURING_BURSTING = 3'b110,
+                          HANDSHAKE_CEHCK_ONCE_DATA_EMTPY = 3'b100;
 
 
     // State register
@@ -111,13 +110,18 @@
     always @ (*) begin
       addr_burst_busy = 1'b0;
       data_burst_busy = 1'b0;
+      write_trans_valid_temp = 1'b0;
       case (cs)
         IDLE: begin
           // FIRST SCENARIO MASTER SEND BOTH SIMULTANEOUSLY
           if (strt_addr_transfer && strt_data_transfer) begin
-            ns = BOTH_IN_PROGRESS;
             addr_burst_busy = 1'b1;
             data_burst_busy = 1'b1;
+            write_trans_valid_temp = 1'b1;
+            if (!data_empty_flag)
+              ns = BOTH_IN_PROGRESS;
+            else
+              ns = HANDSHAKE_CEHCK_ONCE_DATA_EMTPY;
           end
           // SECOND SCENARIO AW CHANNEL IS THE ONLY VALID
           else if (strt_addr_transfer) begin
@@ -138,20 +142,30 @@
           addr_burst_busy = 1'b1;
           if(strt_data_transfer) begin
             data_burst_busy = 1'b1;
-            ns = BOTH_IN_PROGRESS;
+            write_trans_valid_temp = 1'b1;
+            if (!data_empty_flag)
+              ns = BOTH_IN_PROGRESS;
+            else
+              ns = HANDSHAKE_CEHCK_ONCE_DATA_EMTPY;
           end
+
           else begin
             data_burst_busy = 1'b0;
             ns = cs;
           end
-
         end
+
         DATAstrt_ADDRhold: begin
           data_burst_busy = 1'b1;
           if(strt_addr_transfer) begin
             addr_burst_busy = 1'b1;
-            ns = BOTH_IN_PROGRESS;
+            write_trans_valid_temp = 1'b1;
+            if (!data_empty_flag)
+              ns = BOTH_IN_PROGRESS;
+            else
+              ns = HANDSHAKE_CEHCK_ONCE_DATA_EMTPY;
           end
+
           else begin
             addr_burst_busy = 1'b0;
             ns = cs;
@@ -161,22 +175,50 @@
         BOTH_IN_PROGRESS: begin
           addr_burst_busy = 1'b1;
           data_burst_busy = 1'b1;
+          write_trans_valid_temp = 1'b1;
 
           // both counter are equal and equal to beat number then bursting is done
-          if(both_same_beat && (w_data_count == beats_no) ) begin
+          if(both_same_beat && (w_data_count == beats_no) && slave_write_ready ) begin
             ns = IDLE;
             addr_burst_busy = 1'b0;
             data_burst_busy = 1'b0;
+            write_trans_valid_temp = 1'b0;
           end
 
           else if (data_empty_flag) begin
-            ns = DATA_EMTPY_DURING_BURSTING;
+            ns = HANDSHAKE_CEHCK_ONCE_DATA_EMTPY;
           end
 
           else begin
             ns = cs;
             addr_burst_busy = 1'b1;
             data_burst_busy = 1'b1;
+            write_trans_valid_temp = 1'b1;
+          end
+        end
+
+        HANDSHAKE_CEHCK_ONCE_DATA_EMTPY : begin
+          addr_burst_busy = 1'b1;
+          data_burst_busy = 1'b0;
+
+          // Handshake of last data before being empty is not done yet
+          if(!slave_write_ready) begin
+            write_trans_valid_temp = 1'b1;
+            ns = cs;
+          end
+          // both counter are equal and equal to beat number then bursting is done
+          else if(both_same_beat && (w_data_count == beats_no) ) begin
+            ns = IDLE;
+            addr_burst_busy = 1'b0;
+            data_burst_busy = 1'b0;
+          end
+
+          else if(!data_empty_flag) begin
+            ns = BOTH_IN_PROGRESS;
+          end
+
+          else begin
+            ns = DATA_EMTPY_DURING_BURSTING;
           end
         end
 
@@ -184,14 +226,7 @@
           addr_burst_busy = 1'b1;
           data_burst_busy = 1'b0;
 
-          // both counter are equal and equal to beat number then bursting is done
-          if(both_same_beat && (w_data_count == beats_no) ) begin
-            ns = IDLE;
-            addr_burst_busy = 1'b0;
-            data_burst_busy = 1'b0;
-          end
-
-          else if(!data_empty_flag) begin
+          if(!data_empty_flag) begin
             ns = BOTH_IN_PROGRESS;
           end
           else begin
@@ -204,6 +239,7 @@
           ns = IDLE;
           addr_burst_busy = 1'b0;
           data_burst_busy = 1'b0;
+          write_trans_valid_temp = 1'b0;
         end
       endcase
     end
@@ -221,17 +257,18 @@
           aw_address_count <= 'h00;
       end
 
-      else if (!addr_burst_busy) begin
+      else if (write_transfer_done) begin
         aw_address_count <= 'h00; // Reset after burst completion
       end
 
-      else if (aw_address_count < beats_no  && addr_burst_busy && addr_behind_data && (slave_write_ready || (~|aw_address_count))) begin
+      else if (aw_address_count < beats_no  && addr_burst_busy && addr_behind_data &&
+              ((slave_write_ready || (~|aw_address_count)))) begin
           aw_address_count <= aw_address_count + 1'b1;  // Increment during burst
       end
     end
 
     //--------------------------------------------
-    // W Data Counter
+    // W Data Counter && W OUTPUR LOGIC
     //--------------------------------------------
     wire data_behind_addr;
     assign data_behind_addr = (both_same_beat || (w_data_count < aw_address_count)) ? 1'b1 : 1'b0;
@@ -239,14 +276,26 @@
     always @(posedge clk or negedge rst_n) begin
       if (!rst_n) begin
           w_data_count <= 'h00;
+          slave_w_data <= 32'b0;
+          slave_w_strb <= 4'b0;
       end
 
-      else if (!data_burst_busy && (w_data_count == beats_no)) begin
+      else if (write_transfer_done) begin
         w_data_count <= 'h00;  // Reset after burst completion
       end
 
-      else if (w_data_count < beats_no  && data_burst_busy && data_behind_addr && (slave_write_ready || (~|w_data_count))) begin
+      else if (w_data_count < beats_no  && data_burst_busy && data_behind_addr &&
+              (slave_write_ready || (~|w_data_count))) begin
           w_data_count <= w_data_count + 1'b1;  // Increment during burst
+          slave_w_data <= fifo_w_data;
+          slave_w_strb <= fifo_w_strb;
+      end
+
+      // Empty condition during bursting, after empty flag becomes low
+      else if (w_data_count < beats_no && data_burst_busy && w_data_count < aw_address_count) begin
+          w_data_count <= w_data_count + 1'b1;
+          slave_w_data <= fifo_w_data;
+          slave_w_strb <= fifo_w_strb;
       end
     end
 
@@ -308,7 +357,8 @@
       end
       // For Wrap: The boundary was crossed case
       else if (addr_burst_busy && is_wrap && slave_write_ready && addr_behind_data &&
-              !(aw_address_count == beats_no) && !(slave_aw_addr + beats_size < wrap_boundry_addr))begin
+              !(aw_address_count == beats_no) &&
+              (slave_aw_addr + beats_size > wrap_boundry_addr))begin
         slave_aw_addr <= (slave_aw_addr + beats_size) -  wrap_boundry_size;
       end
       // For INCR && normal Wrap
@@ -316,7 +366,7 @@
               !(aw_address_count == beats_no)) begin
         slave_aw_addr <= slave_aw_addr + beats_size;
       end
-      else if (fifo_aw_burst == 2'b00)begin
+      else if (addr_burst_busy && fifo_aw_burst == 2'b00)begin
         slave_aw_addr <= addr_fixed;
       end
     end
@@ -324,7 +374,7 @@
     //------------------------------------------------------------
     // WRITE TRANSACTION VALID OUTPUT
     //------------------------------------------------------------
-    assign  write_trans_valid_temp = addr_burst_busy && data_burst_busy;
+    // assign  write_trans_valid_temp = addr_burst_busy && data_burst_busy;
 
     always @ (posedge clk or negedge rst_n) begin
       if (!rst_n) begin
@@ -335,36 +385,7 @@
       end
     end
 
-    //------------------------------------------------------------
-    // WRITE DATA OUTPUT && STRB
-    //------------------------------------------------------------
-    always @ (posedge clk or negedge rst_n) begin
-      if (!rst_n) begin
-        slave_w_data <= 32'b0;
-        slave_w_strb <= 4'b0;
-      end
-      // First data out on the bus
-      else if (write_trans_valid_temp && (~|w_data_count)) begin
-        slave_w_data <= fifo_w_data;
-        slave_w_strb <= fifo_w_strb;
-      end
-      // After handshake put new data from fifo on bus
-      else if (write_trans_valid_temp && slave_write_ready) begin
-        slave_w_data <= fifo_w_data;
-        slave_w_strb <= fifo_w_strb;
-      end
-    end
 
-    //------------------------------------------------------------
-    // SAMPLING WRITE LAST
-    //------------------------------------------------------------
-    always @ (posedge clk or negedge rst_n) begin
-      if (!rst_n) begin
-        slave_w_last <= 0;
-      end
-      else if (w_data_count == beats_no)
-        slave_w_last <= fifo_w_last;
-    end
 
     //------------------------------------------------------------
     // PROT OUTPUT
@@ -373,7 +394,7 @@
       if (!rst_n) begin
         slave_aw_prot <= 3'b0;
       end
-      else if (write_trans_valid_temp) begin //&& slave_write_ready) begin
+      else if (write_trans_valid_temp) begin
         slave_aw_prot <= fifo_aw_prot;
       end
     end
@@ -395,4 +416,3 @@
 
 
 endmodule
-

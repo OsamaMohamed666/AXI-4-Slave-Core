@@ -11,6 +11,7 @@
     input                         rst_n,
 
     input                         slave_write_ready,
+    input                         write_trans_valid,
     // AW-CHANNEL
     input                         aw_fifo_wr_en, // write enable for fifo (AWVALID HIGH)
     input       [5:0]             aw_id,
@@ -37,8 +38,8 @@
     input       [3:0]             w_strb,
     input                         data_burst_busy,
 
-    input       [`ADDR_WIDTH-1:0] b_w_rd_ptr,
-    input       [`ADDR_WIDTH-1:0] w_data_count,
+    input       [`ADDR_WIDTH:0]   b_w_rd_ptr,
+    input       [`ADDR_WIDTH:0]   w_data_count,
 
     output  reg [31:0]            w_fifo_data,
     output  reg                   w_fifo_last,
@@ -128,7 +129,7 @@
         strt_addr_transfer <= 1'b1;
       end
 
-      // SECOND CONDITION TO READ: if back 2 back transactions
+      // SECOND CONDITION TO READ: IF BACK 2 BACK TRANSACTIONS
       else if (aw_fifo_rd_en && !addr_empty_flag && (b_ready && b_valid) )begin
         aw_fifo_addr <= fifo_aw[aw_rd_ptr][31:0];
         aw_fifo_prot <= fifo_aw[aw_rd_ptr][34:32];
@@ -139,19 +140,6 @@
         aw_rd_ptr <= aw_rd_ptr +1;
         strt_addr_transfer <= 1'b1;
       end
-
-      // // INITIAL CONDITION TO READ: FIRST READING OF FIFO WHEN IT GOT A
-      // else if(aw_fifo_rd_en && !addr_empty_flag && (aw_rd_ptr == 'd0 && b_aw_rd_ptr == 'd0)) begin
-      //   aw_fifo_addr <= fifo_aw[aw_rd_ptr][31:0];
-      //   aw_fifo_prot <= fifo_aw[aw_rd_ptr][34:32];
-      //   aw_fifo_burst <= fifo_aw[aw_rd_ptr][36:35];
-      //   aw_fifo_size <= fifo_aw[aw_rd_ptr][39:37];
-      //   aw_fifo_len <= fifo_aw[aw_rd_ptr][47:40];
-      //   b_fifo_id <= fifo_aw[aw_rd_ptr][53:48];
-      //   aw_rd_ptr <= aw_rd_ptr +1;
-      //   strt_addr_transfer <= 1'b1;
-
-      // end
 
       else
         strt_addr_transfer <= 1'b0;
@@ -177,6 +165,9 @@
     assign data_empty_flag = (w_wr_ptr == w_rd_ptr);
     assign data_full_flag = (w_wr_ptr_nxt == w_rd_ptr );
 
+    // Data counter for fifo output
+    reg [`ADDR_WIDTH:0] fifo_data_count;
+
     //------------------------------------------
     // WRITE LOGIC
     //------------------------------------------
@@ -201,34 +192,72 @@
         w_fifo_last <= 1'b0;
         w_fifo_strb <= 4'b0;
         strt_data_transfer <= 1'b0;
-        w_rd_ptr <= 1'b0;
+        w_rd_ptr <= 'b0;
+        fifo_data_count <= 0;
       end
 
       // FIRST CONDITION TO READ: THE INITIAL READING FROM FIFO
-      else if((!data_burst_busy) && !data_empty_flag && (w_rd_ptr =='d0 && b_w_rd_ptr =='d0)) begin
+      //------------------------------------------
+      else if((!data_burst_busy) && !data_empty_flag && (w_rd_ptr  == b_w_rd_ptr)) begin
         w_fifo_data <= fifo_w[w_rd_ptr][31:0];
         w_fifo_last <= fifo_w[w_rd_ptr][32];
         w_fifo_strb <= fifo_w[w_rd_ptr][36:33];
         w_rd_ptr <= w_rd_ptr +1;
         strt_data_transfer <= 1'b1;
+        fifo_data_count <= 9'b0;
       end
 
       // SECOND CONDITION TO READ: BURST IS ALREADY PROCESSING
-      // Using addr_burst_busy as it's always high during brust processing of data and address
-      else if ( addr_burst_busy && (~|w_data_count || slave_write_ready) && !data_empty_flag && (w_rd_ptr != (b_w_rd_ptr + (aw_fifo_len + 9'd1)))) begin
+      //------------------------------------------
+      // We can keep reading from fifo as long as we are in the same burst (data count not equal to aw_len)
+      // and either slave is ready or no data has been sent yet (w_data_count is 0)
+      else if (!data_empty_flag && addr_burst_busy && data_burst_busy && (~|w_data_count || slave_write_ready) &&
+              (w_data_count != aw_fifo_len)) begin
+
         w_fifo_data <= fifo_w[w_rd_ptr][31:0];
         w_fifo_last <= fifo_w[w_rd_ptr][32];
         w_fifo_strb <= fifo_w[w_rd_ptr][36:33];
         w_rd_ptr <= w_rd_ptr +1;
+        fifo_data_count <=  fifo_data_count + 1;
         strt_data_transfer <= 1'b0;
       end
 
-      // THIRD CONDITION TO READ: NOT THE INITIAL READING
+      // Special case when empty flag is asserted during bursting:
+      // just after flag is deasserted we can read from fifo if we are still in the same burst
+      // and last data on the bus has already been sent by checking W-channel data count is updated
+      else if (!data_empty_flag && addr_burst_busy && !data_burst_busy &&
+              fifo_data_count != aw_fifo_len &&  fifo_data_count != w_data_count) begin
+        w_fifo_data <= fifo_w[w_rd_ptr][31:0];
+        w_fifo_last <= fifo_w[w_rd_ptr][32];
+        w_fifo_strb <= fifo_w[w_rd_ptr][36:33];
+        w_rd_ptr <= w_rd_ptr +1;
+        fifo_data_count <=  fifo_data_count + 1;
+        strt_data_transfer <= 1'b0;
+      end
+
+      // Another special case when empty flag is asserted during bursting:
+      // The data on the bus hasn't been sent just after flag is asserted as slave wasn't ready to accept it,
+      // so last data popped out from the fifo hasn't been yet on the bus,
+      // so wait untill data and address burst are asserted in bursting state,
+      // which means now last popped data is on the bus and last data on the bus has been sent.
+      else if (!data_empty_flag && data_burst_busy && addr_burst_busy && !write_trans_valid &&
+              fifo_data_count != aw_fifo_len && w_data_count == fifo_data_count) begin
+        w_fifo_data <= fifo_w[w_rd_ptr][31:0];
+        w_fifo_last <= fifo_w[w_rd_ptr][32];
+        w_fifo_strb <= fifo_w[w_rd_ptr][36:33];
+        w_rd_ptr <= w_rd_ptr +1;
+        fifo_data_count <=  fifo_data_count + 1;
+        strt_data_transfer <= 1'b0;
+      end
+
+      // THIRD CONDITION TO READ: BACK TO BACK TRANSACTION
+      //------------------------------------------
       else if ((!data_burst_busy) && !data_empty_flag && (b_valid && b_ready)) begin
         w_fifo_data <= fifo_w[w_rd_ptr][31:0];
         w_fifo_last <= fifo_w[w_rd_ptr][32];
         w_fifo_strb <= fifo_w[w_rd_ptr][36:33];
         w_rd_ptr <= w_rd_ptr +1;
+        fifo_data_count <= 0;
         strt_data_transfer <= 1'b1;
       end
 
