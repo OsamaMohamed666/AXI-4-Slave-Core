@@ -53,7 +53,7 @@ module Top_Write_Transaction (
   wire addr_burst_busy;
   wire data_burst_busy;
   wire slave_w_last;
-  wire [`ADDR_WIDTH-1:0] w_data_count;
+  wire [`ADDR_WIDTH:0] w_data_count;
 
   // FIFO outputs
   wire [5:0]  b_fifo_id;
@@ -66,11 +66,11 @@ module Top_Write_Transaction (
   wire [3:0]  w_fifo_strb;
   wire        w_fifo_last;
   wire [`ADDR_WIDTH-1:0] aw_rd_ptr;
-  wire [`ADDR_WIDTH-1:0] w_rd_ptr;
+  wire [`ADDR_WIDTH-1:0]   w_rd_ptr;
 
   // B channel pointers
   wire [`ADDR_WIDTH-1:0] b_aw_rd_ptr;
-  wire [`ADDR_WIDTH-1:0] b_w_rd_ptr;
+  wire [`ADDR_WIDTH:0]   b_w_rd_ptr;
 
   // Submodule instantiations
   Write_FIFO u_write_fifo (
@@ -86,6 +86,7 @@ module Top_Write_Transaction (
     .aw_burst(aw_burst),
     .aw_prot(aw_prot),
     .slave_write_ready(slave_write_ready),
+    .write_trans_valid(write_trans_valid),
     .addr_burst_busy(addr_burst_busy),
 
     .b_aw_rd_ptr(b_aw_rd_ptr),
@@ -132,7 +133,6 @@ module Top_Write_Transaction (
 
     // Data channel
     .fifo_w_data(w_fifo_data),
-    .fifo_w_last(w_fifo_last),
     .fifo_w_strb(w_fifo_strb),
     .data_full_flag(data_full_flag),
     .data_empty_flag(data_empty_flag),
@@ -140,7 +140,6 @@ module Top_Write_Transaction (
 
     .slave_write_ready(slave_write_ready),
     .slave_w_data(slave_w_data),
-    .slave_w_last(slave_w_last),
     .slave_w_strb(slave_w_strb),
     .w_data_count(w_data_count),
 
@@ -171,7 +170,7 @@ module Top_Write_Transaction (
 
     .b_ready(b_ready),
     .fifo_aw_size(aw_fifo_size),
-    .slave_w_last(slave_w_last),
+    .slave_w_last(w_fifo_last),
     .write_transfer_done(write_transfer_done),
     .b_fifo_id(b_fifo_id),
     .aw_rd_ptr(aw_rd_ptr),

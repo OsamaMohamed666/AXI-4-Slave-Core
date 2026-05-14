@@ -1,0 +1,12 @@
+*.vcd
+*.qdb
+*.log
+*.qtl
+*.wlf
+*.ucdb
+*.mpf
+*.mti
+*.vstf
+*.qpg
+tb/sim/work/_info
+/tb/sim/work

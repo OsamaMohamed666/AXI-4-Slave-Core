@@ -14,7 +14,7 @@ module AXI_B_channel (
   input       [`ADDR_WIDTH -1 :0] w_rd_ptr,
 
   output  reg [`ADDR_WIDTH -1:0]  b_aw_rd_ptr,
-  output  reg [`ADDR_WIDTH -1:0]  b_w_rd_ptr,
+  output  reg [`ADDR_WIDTH :0]    b_w_rd_ptr,
   output  reg [5:0]               b_id,
   output  reg [1:0]               b_resp,
   output  reg                     b_valid
@@ -38,15 +38,12 @@ module AXI_B_channel (
 
     else if (write_transfer_done) begin
         b_valid <= 1'b1;
-        if(fifo_aw_size > 2)
-          size_err <= 1;
-        else
-          size_err <= 0;
+        b_id  <= b_fifo_id;
+        b_resp  <= fifo_aw_size > 2 ? SLVERR : slave_w_last ? OKAY : EXOKAY;
+
       end
 
     else if (b_ready && b_valid) begin // handshake now completed now deassert b_valid
-        b_id  <= b_fifo_id;
-        b_resp  <= size_err? SLVERR: slave_w_last? OKAY : EXOKAY;
         b_valid <= 1'b0;
         b_aw_rd_ptr <= aw_rd_ptr;
         b_w_rd_ptr <= w_rd_ptr;

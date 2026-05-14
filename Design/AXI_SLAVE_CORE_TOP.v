@@ -1,8 +1,22 @@
-`define ADDR_WIDTH 8
-`define FIFO_DEPTH (1 << `ADDR_WIDTH)
+  `define ADDR_WIDTH 8
+  `define FIFO_DEPTH (1 << `ADDR_WIDTH)
+
+  // Read Transaction
+  //-------------------------------------------
+  `include"Read_FIFO.v"
+  `include"AXI_AR_channel.v"
+  `include"AXI_R_channel.v"
+  `include"Top_Read_Transaction.v"
+
+  // Write Transaction
+  //-------------------------------------------
+  `include"Write_FIFO.v"
+  `include"AXI_Write_channel.v"
+  `include"AXI_B_channel.v"
+  `include"Top_Write_Transaction.v"
 
 module AXI_SLAVE_CORE_TOP(
-    // Clock & Reset
+  // Clock & Reset
   input  wire         clk,
   input  wire         rst_n,
 
