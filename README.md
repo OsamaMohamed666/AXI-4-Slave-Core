@@ -39,8 +39,16 @@ This project implements a 32-bit AXI4 Slave Core with two independent transactio
 
 The virtual sequencer is used to control and synchronize both Read and Write sequences together, allowing concurrent transaction generation and more realistic AXI traffic scenarios.
 
+## Run Test in Questa-Sim
+### Topology
+<img width="717" height="885" alt="topology 1" src="https://github.com/user-attachments/assets/9a8f9ef4-487f-4bf1-a6b7-b7a21cda2168" />
+<img width="737" height="205" alt="topology 2" src="https://github.com/user-attachments/assets/ed385551-7b59-4518-b6b0-6291002d6189" />
+
+### Results
+<img width="1619" height="886" alt="report" src="https://github.com/user-attachments/assets/d52d0188-6efe-47de-9da9-b6b450bbab46" />
+
+
 ## Features
-- 32-bit AXI4 Slave Core
 - Independent Read and Write transaction handling
 - FIFO-based buffering
 - Support for outstanding transactions
